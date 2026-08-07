@@ -11,7 +11,7 @@ from tavily import TavilyClient
 # ==========================================
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
 TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "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")
-SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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" # Your working URL!
+SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://red-d9q7dsfavr4c73av0fcg:6379")
 
 client = groq.Groq(api_key=GROQ_API_KEY)
@@ -34,9 +34,38 @@ def save_report_to_memory(market, report_text):
         print(f"Memory save failed: {e}")
 
 def send_to_slack(report):
+    if not SLACK_WEBHOOK_URL:
+        print("❌ [Slack Error]: SLACK_WEBHOOK_URL secret is missing!")
+        return
     try:
-        message = {"text": f"🏢 *CLOUD REPORT* 🏢\n\n*Market:* {report.get('market')}\n*Property:* {report.get('property_address', 'N/A')}\n\n*Summary:* {report.get('executive_summary')}\n\n*ROI: {report.get('annual_roi_pct', 'N/A')}%*\n• Cash Flow: ${report.get('monthly_cashflow', 0):,.2f}/mo\n\n*Legal:* {report.get('legal_compliance', 'N/A')}"}
-        response = requests.post(SLACK_WEBHOOK_URL, json=message)
+        # Beautifully formatted Slack message
+        text = f"""🏢 *GLOBAL INVESTMENT INTELLIGENCE REPORT* 🏢
+-----------------------------------
+🌍 *Market:* {report.get('market')}
+🏠 *Property:* {report.get('property_address', 'N/A')}
+
+📊 *FINANCIAL METRICS:*
+• Purchase Price: ${report.get('purchase_price', 0):,.0f}
+• Down Payment (20%): ${report.get('down_payment', 0):,.0f}
+• Monthly Rent: ${report.get('monthly_rent', 0):,.0f}
+• Monthly Expenses: ${report.get('monthly_expenses', 0):,.0f}
+• *Monthly Cash Flow: ${report.get('monthly_cashflow', 0):,.2f}*
+• *Cap Rate:* {report.get('cap_rate', 0)}%
+• *Cash-on-Cash Return:* {report.get('annual_roi_pct', 0)}%
+• *1% Rule:* {report.get('one_percent_rule', 'N/A')}
+
+⚖️ *LEGAL & REGULATORY:*
+• Risk Level: {report.get('legal_risk_level', 'N/A')}
+• Compliance: {report.get('legal_compliance', 'N/A')}
+
+📝 *EXECUTIVE SUMMARY:*
+{report.get('executive_summary', 'N/A')}
+
+💡 *RECOMMENDATION:*
+{report.get('actionable_recommendation', 'N/A')}
+-----------------------------------"""
+        
+        response = requests.post(SLACK_WEBHOOK_URL, json={"text": text})
         print(f"📱 [SLACK SENT] Status: {response.status_code}")
     except Exception as e:
         print(f"❌ [Slack Error]: {e}")
@@ -71,7 +100,12 @@ def run_groq_agent(system_prompt, user_prompt):
 PROMPT_A = """[ROLE] You are Agent A. Extract real estate trends.\n[OUTPUT] Output valid JSON: { "status": "SUCCESS", "investment_signal": "string", "emerging_location": "string", "agent_name": "Agent_A" }"""
 PROMPT_G = """[ROLE] You are Agent G. Find ONE specific property price.\n[RULES] 1. "purchase_price" MUST be integer. 2. "estimated_monthly_rent" MUST be integer (estimate 0.5% of price if unknown). 3. If no price, output 0.\n[OUTPUT] Output valid JSON: { "property_address": "string", "purchase_price": "integer", "estimated_monthly_rent": "integer", "agent_name": "Agent_G" }"""
 PROMPT_C = """[ROLE] You are Agent C, Legal Expert. Check foreign ownership laws for the location.\n[OUTPUT] Output valid JSON: { "legal_compliance": "string", "legal_risk_level": "Low | Medium | High", "agent_name": "Agent_C" }"""
-PROMPT_E = """[ROLE] You are Agent E. Write a 3-sentence executive summary combining market, financials, and legal.\n[OUTPUT] Output valid JSON: { "executive_summary": "string", "actionable_recommendation": "string", "agent_name": "Agent_E" }"""
+
+# Upgraded Agent E Prompt to act like a CFO
+PROMPT_E = """[ROLE] You are Agent E, a Chief Financial Officer (CFO) and Real Estate Strategist.
+[OBJECTIVE] Write a 4-sentence executive summary combining the market trend, the financial metrics (Cap Rate, Cash-on-Cash Return, 1% Rule), and legal risks.
+[TASK] Explain the numbers clearly. If the 1% Rule failed, mention it is overpriced. If Cash-on-Cash is negative, warn of cash drain. 
+[OUTPUT] Output valid JSON: { "executive_summary": "string (4 sentences)", "actionable_recommendation": "string", "agent_name": "Agent_E" }"""
 
 def clean_number(val):
     if isinstance(val, (int, float)): return float(val)
@@ -83,24 +117,59 @@ def clean_number(val):
         except ValueError: return 0
     return 0
 
+# ==========================================
+# UPGRADED MATH ENGINE
+# ==========================================
 def calculate_financials(financials):
     if not financials: return None
     price = clean_number(financials.get('purchase_price', 0))
     rent = clean_number(financials.get('estimated_monthly_rent', 0))
     if price == 0: return None
     if rent > (price * 0.01) or rent == 0: rent = price * 0.005
+    
     down_pct, int_rate, hoa, tax = 0.20, 0.065, 300, (price * 0.01) / 12
     down_payment = price * down_pct
     loan_amount = price - down_payment
     n, monthly_int = 360, int_rate / 12
     mortgage = loan_amount * (monthly_int * (1 + monthly_int)**n) / ((1 + monthly_int)**n - 1) if monthly_int > 0 else loan_amount / n
-    monthly_expenses = mortgage + hoa + tax + (rent * 0.15)
+    
+    maintenance = rent * 0.15
+    monthly_expenses = mortgage + hoa + tax + maintenance
     monthly_cashflow = rent - monthly_expenses
-    roi = ((monthly_cashflow * 12) / down_payment) * 100 if down_payment > 0 else 0
-    return {"purchase_price": price, "monthly_cashflow": round(monthly_cashflow, 2), "annual_roi_pct": round(roi, 2)}
+    annual_cashflow = monthly_cashflow * 12
+    annual_rent = rent * 12
+    
+    # New Institutional Metrics
+    roi = (annual_cashflow / down_payment) * 100 if down_payment > 0 else 0
+    cap_rate = (annual_rent / price) * 100 if price > 0 else 0
+    one_percent_rule = "PASS" if rent >= (price * 0.01) else "FAIL"
+    
+    return {
+        "purchase_price": price, 
+        "down_payment": round(down_payment, 2),
+        "monthly_rent": round(rent, 2),
+        "monthly_expenses": round(monthly_expenses, 2),
+        "monthly_cashflow": round(monthly_cashflow, 2), 
+        "annual_roi_pct": round(roi, 2),
+        "cap_rate": round(cap_rate, 2),
+        "one_percent_rule": one_percent_rule
+    }
 
 def run_cycle():
-    markets = ["Dubai apartment for sale price 2026", "Riyadh villa for sale price", "Miami condo for sale price Brickell"]
+    # EXPANDED TO 10 GLOBAL MARKETS
+    markets = [
+        "Dubai apartment for sale price 2026", 
+        "Riyadh villa for sale price", 
+        "Miami condo for sale price Brickell",
+        "London Canary Wharf apartment for sale",
+        "Tokyo Minato ward apartment for sale",
+        "Singapore Orchard condo for sale",
+        "New York Manhattan condo for sale",
+        "Berlin Mitte apartment for sale",
+        "Sydney Harbourfront apartment for sale",
+        "Paris Le Marais apartment for sale"
+    ]
+    
     for market in markets:
         print(f"\n{'='*50}\nMARKET: {market.upper()}\n{'='*50}")
         live_data = deep_search(market)
@@ -117,11 +186,10 @@ def run_cycle():
         print(f"🏠 [Agent G] Price: ${clean_number(agent_g.get('purchase_price')):,.0f}")
         
         financials = calculate_financials(agent_g)
-        
         if financials:
-            print(f"🧮 [Math] ROI: {financials['annual_roi_pct']}%")
+            print(f"🧮 [Math] ROI: {financials['annual_roi_pct']}% | Cap Rate: {financials['cap_rate']}% | 1% Rule: {financials['one_percent_rule']}")
         else:
-            financials = {"purchase_price": 0, "monthly_cashflow": 0, "annual_roi_pct": 0}
+            financials = {"purchase_price": 0, "down_payment": 0, "monthly_rent": 0, "monthly_expenses": 0, "monthly_cashflow": 0, "annual_roi_pct": 0, "cap_rate": 0, "one_percent_rule": "N/A"}
             
         agent_c = run_groq_agent(PROMPT_C, f"Check legal:\n{json.dumps(agent_g)}")
         print(f"⚖️ [Agent C] Risk: {agent_c.get('legal_risk_level')}")
@@ -135,13 +203,16 @@ def run_cycle():
             "market": market, "property_address": agent_g.get('property_address', 'Unknown'),
             "executive_summary": agent_e.get('executive_summary', 'No summary generated.'), 
             "actionable_recommendation": agent_e.get('actionable_recommendation', 'N/A'),
-            "purchase_price": financials['purchase_price'], "monthly_cashflow": financials['monthly_cashflow'],
-            "annual_roi_pct": financials['annual_roi_pct'], "legal_compliance": agent_c.get('legal_compliance', 'N/A')
+            "purchase_price": financials['purchase_price'], "down_payment": financials['down_payment'],
+            "monthly_rent": financials['monthly_rent'], "monthly_expenses": financials['monthly_expenses'],
+            "monthly_cashflow": financials['monthly_cashflow'], "annual_roi_pct": financials['annual_roi_pct'],
+            "cap_rate": financials['cap_rate'], "one_percent_rule": financials['one_percent_rule'],
+            "legal_risk_level": agent_c.get('legal_risk_level', 'N/A'), "legal_compliance": agent_c.get('legal_compliance', 'N/A')
         }
         send_to_slack(slack_payload)
 
 if __name__ == "__main__":
-    print("--- OMNIPROP CLOUD WORKER STARTED ---")
+    print("--- OMNIPROP GLOBAL CLOUD WORKER STARTED ---")
     try:
         run_cycle()
         print("\n--- AUTONOMOUS CYCLE COMPLETE ---")
