@@ -6,9 +6,12 @@ import redis
 import datetime
 from tavily import TavilyClient
 
+# ==========================================
+# CONFIGURATION
+# ==========================================
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
 TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "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")
-SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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" # Hardcoded!
+SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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" # Your working URL!
 REDIS_URL = os.environ.get("REDIS_URL", "redis://red-d9q7dsfavr4c73av0fcg:6379")
 
 client = groq.Groq(api_key=GROQ_API_KEY)
@@ -114,10 +117,6 @@ def run_cycle():
         print(f"🏠 [Agent G] Price: ${clean_number(agent_g.get('purchase_price')):,.0f}")
         
         financials = calculate_financials(agent_g)
-        
-        # TEMPORARILY DISABLED VALIDATION GATE TO GUARANTEE SLACK MESSAGES
-        # if not financials or financials['purchase_price'] == 0: print("🚨 [FAILED] No price."); continue
-        # if financials['annual_roi_pct'] > 50 or financials['annual_roi_pct'] < -50: print("🚨 [FAILED] Bad ROI."); continue
         
         if financials:
             print(f"🧮 [Math] ROI: {financials['annual_roi_pct']}%")
