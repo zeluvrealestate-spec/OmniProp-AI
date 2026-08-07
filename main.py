@@ -30,7 +30,6 @@ def save_report_to_memory(market, report_data):
     if not redis_client: return
     try:
         report_id = f"{market}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-        # Save the entire dictionary as a JSON string so the dashboard can read it
         redis_client.lpush(market, json.dumps(report_data))
     except Exception as e:
         print(f"Memory save failed: {e}")
@@ -84,9 +83,6 @@ def deep_search(query):
         print(f"❌ [Tavily Error]: {e}")
         return None
 
-# ==========================================
-# GROQ AI ENGINE (With Retry Logic)
-# ==========================================
 def run_groq_agent(system_prompt, user_prompt):
     max_retries = 3
     for attempt in range(max_retries):
@@ -129,4 +125,98 @@ def calculate_financials(financials):
     if price == 0: return None
     if rent > (price * 0.01) or rent == 0: rent = price * 0.005
     
-    down_pct, int_rate, hoa, tax = 0.20, 0.065, 300, (price * 0.01) /
+    # Put each variable on its own line to prevent syntax errors
+    down_pct = 0.20
+    int_rate = 0.065
+    hoa = 300
+    tax = (price * 0.01) / 12
+    
+    down_payment = price * down_pct
+    loan_amount = price - down_payment
+    n = 360
+    monthly_int = int_rate / 12
+    if monthly_int > 0:
+        mortgage = loan_amount * (monthly_int * (1 + monthly_int)**n) / ((1 + monthly_int)**n - 1)
+    else:
+        mortgage = loan_amount / n
+    
+    monthly_expenses = mortgage + hoa + tax + (rent * 0.15)
+    monthly_cashflow = rent - monthly_expenses
+    annual_cashflow = monthly_cashflow * 12
+    annual_rent = rent * 12
+    
+    roi = (annual_cashflow / down_payment) * 100 if down_payment > 0 else 0
+    cap_rate = (annual_rent / price) * 100 if price > 0 else 0
+    one_percent_rule = "PASS" if rent >= (price * 0.01) else "FAIL"
+    
+    return {
+        "purchase_price": price, "down_payment": round(down_payment, 2),
+        "monthly_rent": round(rent, 2), "monthly_expenses": round(monthly_expenses, 2),
+        "monthly_cashflow": round(monthly_cashflow, 2), "annual_roi_pct": round(roi, 2),
+        "cap_rate": round(cap_rate, 2), "one_percent_rule": one_percent_rule
+    }
+
+def run_cycle():
+    markets = [
+        "Dubai apartment for sale price 2026", "Riyadh villa for sale price", 
+        "Miami condo for sale price Brickell", "London Canary Wharf apartment for sale",
+        "Tokyo Minato ward apartment for sale", "Singapore Orchard condo for sale",
+        "New York Manhattan condo for sale", "Berlin Mitte apartment for sale",
+        "Sydney Harbourfront apartment for sale", "Paris Le Marais apartment for sale"
+    ]
+    
+    for market in markets:
+        print(f"\n{'='*50}\nMARKET: {market.upper()}\n{'='*50}")
+        try:
+            live_data = deep_search(market)
+            if not live_data: 
+                send_to_slack({"market": market, "executive_summary": "Agent A could not find any articles for this market."})
+                continue
+                
+            agent_a = run_groq_agent(PROMPT_A, f"Analyze:\n{live_data}")
+            if not agent_a: continue
+            print(f"✅ [Agent A] Signal: {agent_a.get('investment_signal')}")
+            
+            agent_g = run_groq_agent(PROMPT_G, f"Extract property:\n{live_data}")
+            if not agent_g: continue
+            print(f"🏠 [Agent G] Price: ${clean_number(agent_g.get('purchase_price')):,.0f}")
+            
+            financials = calculate_financials(agent_g)
+            if financials:
+                print(f"🧮 [Math] ROI: {financials['annual_roi_pct']}% | Cap Rate: {financials['cap_rate']}% | 1% Rule: {financials['one_percent_rule']}")
+            else:
+                financials = {"purchase_price": 0, "down_payment": 0, "monthly_rent": 0, "monthly_expenses": 0, "monthly_cashflow": 0, "annual_roi_pct": 0, "cap_rate": 0, "one_percent_rule": "N/A"}
+                
+            agent_c = run_groq_agent(PROMPT_C, f"Check legal:\n{json.dumps(agent_g)}")
+            print(f"⚖️ [Agent C] Risk: {agent_c.get('legal_risk_level')}")
+            
+            agent_e = run_groq_agent(PROMPT_E, f"Market:\n{json.dumps(agent_a)}\nProp:\n{json.dumps(agent_g)}\nFin:\n{json.dumps(financials)}\nLegal:\n{json.dumps(agent_c)}")
+            print(f"📝 [Report] {agent_e.get('executive_summary')}")
+            
+            slack_payload = {
+                "market": market, "property_address": agent_g.get('property_address', 'Unknown'),
+                "executive_summary": agent_e.get('executive_summary', 'No summary generated.'), 
+                "actionable_recommendation": agent_e.get('actionable_recommendation', 'N/A'),
+                "purchase_price": financials['purchase_price'], "down_payment": financials['down_payment'],
+                "monthly_rent": financials['monthly_rent'], "monthly_expenses": financials['monthly_expenses'],
+                "monthly_cashflow": financials['monthly_cashflow'], "annual_roi_pct": financials['annual_roi_pct'],
+                "cap_rate": financials['cap_rate'], "one_percent_rule": financials['one_percent_rule'],
+                "legal_risk_level": agent_c.get('legal_risk_level', 'N/A'), "legal_compliance": agent_c.get('legal_compliance', 'N/A')
+            }
+            
+            save_report_to_memory(market, slack_payload)
+            send_to_slack(slack_payload)
+            
+            time.sleep(15) 
+            
+        except Exception as e:
+            print(f"❌ [MARKET ERROR]: {e}")
+            continue
+
+if __name__ == "__main__":
+    print("--- OMNIPROP GLOBAL CLOUD WORKER STARTED ---")
+    try:
+        run_cycle()
+        print("\n--- AUTONOMOUS CYCLE COMPLETE ---")
+    except Exception as e:
+        print(f"❌ [SYSTEM ERROR]: {e}")
