@@ -195,7 +195,7 @@ def run_cycle():
             
             send_to_slack(slack_payload)
             
-            time.sleep(5) 
+            time.sleep(15) 
             
         except Exception as e:
             print(f"❌ [MARKET ERROR]: {e}")
