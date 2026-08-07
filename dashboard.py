@@ -13,33 +13,41 @@ st.set_page_config(page_title="Zeluv io", page_icon="🏢", layout="wide")
 
 REDIS_URL = st.secrets["REDIS_URL"]
 
-# Custom CSS for a Modern, Clean, Enterprise Look
+# Custom CSS for a Modern, Sleek Black Enterprise Look
 st.markdown("""
 <style>
-    /* Remove top padding and set pure white background */
-    .stApp { background-color: #FFFFFF; padding-top: 2rem; }
+    /* Set pure black background */
+    .stApp { background-color: #000000; padding-top: 2rem; }
     
-    /* Clean modern font and spacing */
-    .stMarkdown, p, span, div, h1, h2, h3 { font-family: 'Helvetica', 'Arial', sans-serif !important; }
+    /* Clean modern font and ensure text is white/light gray */
+    .stMarkdown, p, span, div, h1, h2, h3 { font-family: 'Helvetica', 'Arial', sans-serif !important; color: #FFFFFF !important; }
     
-    /* Clean KPI Metric boxes */
-    .stMetric { background-color: #F8F9FA; padding: 15px; border-radius: 4px; border: 1px solid #E9ECEF; }
+    /* KPI Metric boxes - Dark Gray with subtle border */
+    .stMetric { background-color: #1A1A1A; padding: 15px; border-radius: 4px; border: 1px solid #333333; }
+    .stMetric label { color: #AAAAAA !important; }
+    .stMetric value { color: #FFFFFF !important; }
     
     /* Remove Streamlit Footer */
     footer { visibility: hidden; }
     
-    /* Sidebar styling */
-    [data-testid="stSidebar"] { background-color: #F8F9FA; border-right: 1px solid #E9ECEF; }
+    /* Sidebar styling - True Black */
+    [data-testid="stSidebar"] { background-color: #000000; border-right: 1px solid #333333; }
     
     /* Make buttons look modern */
     .stButton > button {
-        border: 1px solid #E9ECEF; background-color: #FFFFFF; color: #333333;
+        border: 1px solid #333333; background-color: #1A1A1A; color: #FFFFFF;
         border-radius: 4px; padding: 10px 15px; font-weight: 500;
         transition: all 0.2s ease-in-out; width: 100%;
     }
     .stButton > button:hover {
-        border-color: #333333; background-color: #F8F9FA; 
+        border-color: #FFFFFF; background-color: #333333; 
     }
+    
+    /* Selectbox styling */
+    .stSelectbox > div > div { background-color: #1A1A1A; color: #FFFFFF; border: 1px solid #333333; }
+    
+    /* Horizontal rule color */
+    hr { border-color: #333333 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -61,7 +69,7 @@ def load_data():
     return pd.DataFrame(all_reports)
 
 # ==========================================
-# PDF GENERATOR
+# PDF GENERATOR (Keeps white background for printing)
 # ==========================================
 def generate_pdf(report):
     pdf = FPDF()
@@ -113,10 +121,10 @@ def generate_pdf(report):
 # DASHBOARD UI
 # ==========================================
 
-# Clean Header (No Image Logo, Just Text)
-st.markdown("<h1 style='font-size: 2.2rem; font-weight: 800; margin-bottom: 0; color: #1a1a1a;'>Zeluv io</h1>", unsafe_allow_html=True)
-st.markdown("<p style='font-size: 1.05rem; color: #6c757d; margin-top: 0;'>Global Real Estate Investment Intelligence</p>", unsafe_allow_html=True)
-st.markdown("<hr style='margin-top: 10px; margin-bottom: 20px; border-color: #E9ECEF;'>", unsafe_allow_html=True)
+# Clean Header
+st.markdown("<h1 style='font-size: 2.2rem; font-weight: 800; margin-bottom: 0; color: #FFFFFF;'>Zeluv io</h1>", unsafe_allow_html=True)
+st.markdown("<p style='font-size: 1.05rem; color: #AAAAAA; margin-top: 0;'>Global Real Estate Investment Intelligence</p>", unsafe_allow_html=True)
+st.markdown("<hr style='margin-top: 10px; margin-bottom: 20px; border-color: #333333;'>", unsafe_allow_html=True)
 
 df = load_data()
 
@@ -140,35 +148,31 @@ else:
     
     st.markdown("---")
 
-    # Professional Charts (Monochrome / Navy Blue)
+    # Professional Charts (Neon Pop on Black)
     st.markdown("### Market Performance")
     col_chart1, col_chart2 = st.columns(2)
     
-    # Professional Color Palette (Dark Navy & Slate Gray)
-    prof_colors = ['#1f2d3d'] * len(df)
-    
     with col_chart1:
         fig_cap = px.bar(df, x='market_key', y='cap_rate', text='cap_rate')
-        fig_cap.update_traces(marker_color=prof_colors, marker_line_width=0, texttemplate='%{text}%', textposition='outside')
-        fig_cap.update_layout(showlegend=False, xaxis_title="", yaxis_title="Cap Rate (%)", font=dict(size=12, color='#333'), plot_bgcolor='white', paper_bgcolor='white', margin=dict(t=10, b=10))
-        # Remove gridlines for a cleaner look
-        fig_cap.update_yaxes(showgrid=False, showline=True, linewidth=1, linecolor='#E9ECEF')
-        fig_cap.update_xaxes(showline=True, linewidth=1, linecolor='#E9ECEF')
+        fig_cap.update_traces(marker_color='#4A90E2', marker_line_width=0, texttemplate='%{text}%', textposition='outside', textfont_color='#FFFFFF')
+        fig_cap.update_layout(showlegend=False, xaxis_title="", yaxis_title="Cap Rate (%)", font=dict(size=12, color='#AAAAAA'), plot_bgcolor='#000000', paper_bgcolor='#000000', margin=dict(t=10, b=10))
+        fig_cap.update_yaxes(showgrid=False, showline=True, linewidth=1, linecolor='#333333', color='#AAAAAA')
+        fig_cap.update_xaxes(showline=True, linewidth=1, linecolor='#333333', color='#AAAAAA')
         st.plotly_chart(fig_cap, use_container_width=True)
 
     with col_chart2:
-        # Cash flow can have negative values, let's color them red, positive dark navy
-        cash_colors = ['#c0392b' if x < 0 else '#1f2d3d' for x in df['monthly_cashflow']]
+        # Cash flow: Bright Red for negative, Bright Blue for positive
+        cash_colors = ['#FF5252' if x < 0 else '#4A90E2' for x in df['monthly_cashflow']]
         fig_cash = px.bar(df, x='market_key', y='monthly_cashflow', text='monthly_cashflow')
-        fig_cash.update_traces(marker_color=cash_colors, marker_line_width=0, texttemplate='$%{text}', textposition='outside')
-        fig_cash.update_layout(showlegend=False, xaxis_title="", yaxis_title="Monthly Cash Flow ($)", font=dict(size=12, color='#333'), plot_bgcolor='white', paper_bgcolor='white', margin=dict(t=10, b=10))
-        fig_cash.update_yaxes(showgrid=False, showline=True, linewidth=1, linecolor='#E9ECEF')
-        fig_cash.update_xaxes(showline=True, linewidth=1, linecolor='#E9ECEF')
+        fig_cash.update_traces(marker_color=cash_colors, marker_line_width=0, texttemplate='$%{text}', textposition='outside', textfont_color='#FFFFFF')
+        fig_cash.update_layout(showlegend=False, xaxis_title="", yaxis_title="Monthly Cash Flow ($)", font=dict(size=12, color='#AAAAAA'), plot_bgcolor='#000000', paper_bgcolor='#000000', margin=dict(t=10, b=10))
+        fig_cash.update_yaxes(showgrid=False, showline=True, linewidth=1, linecolor='#333333', color='#AAAAAA')
+        fig_cash.update_xaxes(showline=True, linewidth=1, linecolor='#333333', color='#AAAAAA')
         st.plotly_chart(fig_cash, use_container_width=True)
 
     st.markdown("---")
 
-    # Professional Sidebar Selection (No Emojis)
+    # Professional Sidebar Selection
     st.sidebar.markdown("### Navigation")
     st.sidebar.markdown("Select a market to view its detailed investment report and download the PDF.")
     selected_market_name = st.sidebar.selectbox("Markets", df['market_key'].unique())
