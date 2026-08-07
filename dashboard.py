@@ -7,7 +7,7 @@ import plotly.express as px
 # ==========================================
 # CONFIGURATION
 # ==========================================
-st.set_page_config(page_title="OmniProp Intelligence", page_icon="🏢", layout="wide")
+st.set_page_config(page_title="Zeluv io", page_icon="🏢", layout="wide")
 
 # Read the URL securely from Streamlit Cloud
 REDIS_URL = st.secrets["REDIS_URL"]
@@ -32,13 +32,13 @@ def load_data():
 # ==========================================
 # DASHBOARD UI
 # ==========================================
-st.title("🏢 OmniProp Intelligence Dashboard")
+st.title("🏢 Zeluv io Dashboard")
 st.markdown("Global Real Estate Investment Intelligence & Analytics")
 
 df = load_data()
 
 if df.empty:
-    st.warning("No reports found in Redis yet. Make sure the GitHub Action has successfully finished running!")
+    st.warning("No reports found in the database yet. Make sure the GitHub Action has successfully finished running!")
 else:
     if 'purchase_price' in df:
         df['purchase_price'] = df['purchase_price'].astype(float)
