@@ -32,14 +32,14 @@ def load_data():
 # ==========================================
 # DASHBOARD UI
 # ==========================================
-# Center the Logo and Tagline
+
+# Center the Logo
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    st.image("https://z-cdn-media.chatglm.cn/files/ddb3a8de-d171-47f6-8d86-5c827f6ca5a5.png?auth_key=1886107367-19bc8f9676174feaa5a8b685299260f7-0-3d42e771b8b6783f85031089b4cbc653", width=400)
-    st.markdown("<h3 style='text-align: center; color: #808080;'>Real Estate, Reimagined by AI</h3>", unsafe_allow_html=True)
+    st.image("https://z-cdn-media.chatglm.cn/files/ddb3a8de-d171-47f6-8d86-5c827f6ca5a5.png?auth_key=1886107572-89f8ef77610746cdb1d35b0f0c9c94b3-0-ae7928019b3f9fc4512fcb26fdee9a29", width=300)
 
+st.markdown("<h3 style='text-align: center; color: #808080;'>Global Real Estate Investment Intelligence</h3>", unsafe_allow_html=True)
 st.markdown("---")
-st.markdown("### Global Real Estate Investment Intelligence")
 
 df = load_data()
 
@@ -91,4 +91,12 @@ else:
                 
                 st.markdown("**Purchase Price:** " + price_str)
                 st.markdown("**Monthly Rent:** " + rent_str)
-                st.mark
+                st.markdown("**Monthly Cashflow:** " + cashflow_str)
+                st.markdown("**Cap Rate:** " + cap_str)
+                st.markdown("**1% Rule:** " + str(row.get('one_percent_rule', 'N/A')))
+                st.markdown("**Legal Risk:** " + str(row.get('legal_risk_level', 'N/A')))
+            with c2:
+                st.markdown("**Executive Summary:**")
+                st.info(row.get('executive_summary', 'N/A'))
+                st.markdown("**Recommendation:**")
+                st.warning(row.get('actionable_recommendation', 'N/A'))
