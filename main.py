@@ -26,11 +26,12 @@ except Exception as e:
     print(f"❌ Redis Error: {e}")
     redis_client = None
 
-def save_report_to_memory(market, report_text):
+def save_report_to_memory(market, report_data):
     if not redis_client: return
     try:
         report_id = f"{market}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-        redis_client.lpush(market, f"{report_id}: {report_text}")
+        # Save the entire dictionary as a JSON string so the dashboard can read it
+        redis_client.lpush(market, json.dumps(report_data))
     except Exception as e:
         print(f"Memory save failed: {e}")
 
@@ -178,8 +179,6 @@ def run_cycle():
             agent_e = run_groq_agent(PROMPT_E, f"Market:\n{json.dumps(agent_a)}\nProp:\n{json.dumps(agent_g)}\nFin:\n{json.dumps(financials)}\nLegal:\n{json.dumps(agent_c)}")
             print(f"📝 [Report] {agent_e.get('executive_summary')}")
             
-            save_report_to_memory(market, agent_e.get('executive_summary'))
-            
             slack_payload = {
                 "market": market, "property_address": agent_g.get('property_address', 'Unknown'),
                 "executive_summary": agent_e.get('executive_summary', 'No summary generated.'), 
@@ -190,14 +189,17 @@ def run_cycle():
                 "cap_rate": financials['cap_rate'], "one_percent_rule": financials['one_percent_rule'],
                 "legal_risk_level": agent_c.get('legal_risk_level', 'N/A'), "legal_compliance": agent_c.get('legal_compliance', 'N/A')
             }
+            
+            # Save the full payload to Redis for the Dashboard!
+            save_report_to_memory(market, slack_payload)
+            
             send_to_slack(slack_payload)
             
-            # CRITICAL: Sleep for 5 seconds between markets to avoid hitting API rate limits!
             time.sleep(5) 
             
         except Exception as e:
             print(f"❌ [MARKET ERROR]: {e}")
-            continue # If one market fails, move to the next one instead of crashing
+            continue
 
 if __name__ == "__main__":
     print("--- OMNIPROP GLOBAL CLOUD WORKER STARTED ---")
