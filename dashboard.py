@@ -3,7 +3,6 @@ import redis
 import json
 import pandas as pd
 import plotly.express as px
-import requests
 import io
 from fpdf import FPDF
 
@@ -13,7 +12,6 @@ from fpdf import FPDF
 st.set_page_config(page_title="Zeluv io", page_icon="🏢", layout="wide")
 
 REDIS_URL = st.secrets["REDIS_URL"]
-LOGO_URL = "https://z-cdn-media.chatglm.cn/files/ddb3a8de-d171-47f6-8d86-5c827f6ca5a5.png?auth_key=1886107572-89f8ef77610746cdb1d35b0f0c9c94b3-0-ae7928019b3f9fc4512fcb26fdee9a29"
 
 # Custom CSS for a Modern, Clean, Enterprise Look
 st.markdown("""
@@ -22,26 +20,26 @@ st.markdown("""
     .stApp { background-color: #FFFFFF; padding-top: 2rem; }
     
     /* Clean modern font and spacing */
-    .stMarkdown, p, span, div { font-family: 'Inter', 'Helvetica', sans-serif !important; }
+    .stMarkdown, p, span, div, h1, h2, h3 { font-family: 'Helvetica', 'Arial', sans-serif !important; }
     
-    /* Remove default Streamlit borders and boxes for a flat look */
-    .stMetric { background-color: #F8F9FA; padding: 15px; border-radius: 10px; border: 1px solid #E9ECEF; }
+    /* Clean KPI Metric boxes */
+    .stMetric { background-color: #F8F9FA; padding: 15px; border-radius: 4px; border: 1px solid #E9ECEF; }
     
-    /* Force the logo to have a transparent/white blend background */
-    .logo-img { mix-blend-mode: multiply; }
+    /* Remove Streamlit Footer */
+    footer { visibility: hidden; }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] { background-color: #F8F9FA; border-right: 1px solid #E9ECEF; }
     
     /* Make buttons look modern */
     .stButton > button {
         border: 1px solid #E9ECEF; background-color: #FFFFFF; color: #333333;
-        border-radius: 8px; padding: 10px 15px; font-weight: 500;
+        border-radius: 4px; padding: 10px 15px; font-weight: 500;
         transition: all 0.2s ease-in-out; width: 100%;
     }
     .stButton > button:hover {
-        border-color: #333333; background-color: #F8F9FA; transform: translateY(-1px);
+        border-color: #333333; background-color: #F8F9FA; 
     }
-    
-    /* Hide Streamlit Footer */
-    footer { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -68,17 +66,19 @@ def load_data():
 def generate_pdf(report):
     pdf = FPDF()
     pdf.add_page()
-    try:
-        img_response = requests.get(LOGO_URL)
-        img_byte_arr = io.BytesIO(img_response.content)
-        # Put logo top right in PDF
-        pdf.image(img_byte_arr, x=150, y=8, w=45)
-    except: pass
-        
-    pdf.ln(20)
-    pdf.set_font("Helvetica", 'B', 18)
+    
+    pdf.ln(10)
+    pdf.set_font("Helvetica", 'B', 20)
     pdf.set_text_color(30, 30, 30)
+    pdf.cell(0, 10, "Zeluv io", ln=True)
+    
+    pdf.set_font("Helvetica", '', 12)
+    pdf.set_text_color(120, 120, 120)
     pdf.cell(0, 10, "Investment Intelligence Report", ln=True)
+    pdf.ln(10)
+    
+    pdf.set_draw_color(200, 200, 200)
+    pdf.line(10, 35, 200, 35)
     pdf.ln(5)
     
     pdf.set_font("Helvetica", 'B', 12)
@@ -113,15 +113,10 @@ def generate_pdf(report):
 # DASHBOARD UI
 # ==========================================
 
-# Modern Header: Title on left, Single Logo on right
-col_header1, col_header2 = st.columns([4, 1])
-with col_header1:
-    st.markdown("<h1 style='font-size: 2.5rem; font-weight: 800; margin-bottom: 0; color: #1a1a1a;'>Zeluv io</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='font-size: 1.1rem; color: #6c757d; margin-top: 0;'>Global Real Estate Investment Intelligence</p>", unsafe_allow_html=True)
-with col_header2:
-    st.markdown(f"<img src='{LOGO_URL}' class='logo-img' width='150' style='float: right;'>", unsafe_allow_html=True)
-
-st.markdown("---")
+# Clean Header (No Image Logo, Just Text)
+st.markdown("<h1 style='font-size: 2.2rem; font-weight: 800; margin-bottom: 0; color: #1a1a1a;'>Zeluv io</h1>", unsafe_allow_html=True)
+st.markdown("<p style='font-size: 1.05rem; color: #6c757d; margin-top: 0;'>Global Real Estate Investment Intelligence</p>", unsafe_allow_html=True)
+st.markdown("<hr style='margin-top: 10px; margin-bottom: 20px; border-color: #E9ECEF;'>", unsafe_allow_html=True)
 
 df = load_data()
 
@@ -136,7 +131,7 @@ else:
         df['monthly_cashflow'] = df['monthly_cashflow'].astype(float)
 
     # Top KPI Metrics
-    st.markdown("### 📊 Global Overview")
+    st.markdown("### Global Overview")
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Markets Tracked", len(df))
     col2.metric("Highest Cap Rate", f"{df['cap_rate'].max()}%")
@@ -145,51 +140,45 @@ else:
     
     st.markdown("---")
 
-    # Charts
-    st.markdown("### 📈 Market Performance")
+    # Professional Charts (Monochrome / Navy Blue)
+    st.markdown("### Market Performance")
     col_chart1, col_chart2 = st.columns(2)
+    
+    # Professional Color Palette (Dark Navy & Slate Gray)
+    prof_colors = ['#1f2d3d'] * len(df)
+    
     with col_chart1:
-        fig_cap = px.bar(df, x='market_key', y='cap_rate', color='market_key', text='cap_rate')
-        fig_cap.update_traces(texttemplate='%{text}%', textposition='outside', marker_line_width=0)
-        fig_cap.update_layout(showlegend=False, xaxis_title="", yaxis_title="Cap Rate (%)", font=dict(family="Inter", size=12), plot_bgcolor='white', paper_bgcolor='white')
+        fig_cap = px.bar(df, x='market_key', y='cap_rate', text='cap_rate')
+        fig_cap.update_traces(marker_color=prof_colors, marker_line_width=0, texttemplate='%{text}%', textposition='outside')
+        fig_cap.update_layout(showlegend=False, xaxis_title="", yaxis_title="Cap Rate (%)", font=dict(size=12, color='#333'), plot_bgcolor='white', paper_bgcolor='white', margin=dict(t=10, b=10))
+        # Remove gridlines for a cleaner look
+        fig_cap.update_yaxes(showgrid=False, showline=True, linewidth=1, linecolor='#E9ECEF')
+        fig_cap.update_xaxes(showline=True, linewidth=1, linecolor='#E9ECEF')
         st.plotly_chart(fig_cap, use_container_width=True)
 
     with col_chart2:
-        fig_cash = px.bar(df, x='market_key', y='monthly_cashflow', color='market_key', text='monthly_cashflow')
-        fig_cash.update_traces(texttemplate='$%{text}', textposition='outside', marker_line_width=0)
-        fig_cash.update_layout(showlegend=False, xaxis_title="", yaxis_title="Monthly Cash Flow ($)", font=dict(family="Inter", size=12), plot_bgcolor='white', paper_bgcolor='white')
+        # Cash flow can have negative values, let's color them red, positive dark navy
+        cash_colors = ['#c0392b' if x < 0 else '#1f2d3d' for x in df['monthly_cashflow']]
+        fig_cash = px.bar(df, x='market_key', y='monthly_cashflow', text='monthly_cashflow')
+        fig_cash.update_traces(marker_color=cash_colors, marker_line_width=0, texttemplate='$%{text}', textposition='outside')
+        fig_cash.update_layout(showlegend=False, xaxis_title="", yaxis_title="Monthly Cash Flow ($)", font=dict(size=12, color='#333'), plot_bgcolor='white', paper_bgcolor='white', margin=dict(t=10, b=10))
+        fig_cash.update_yaxes(showgrid=False, showline=True, linewidth=1, linecolor='#E9ECEF')
+        fig_cash.update_xaxes(showline=True, linewidth=1, linecolor='#E9ECEF')
         st.plotly_chart(fig_cash, use_container_width=True)
 
     st.markdown("---")
 
-    # City Icons Grid (Click to view details)
-    st.markdown("### 🌍 Select a Market to View Detailed Report")
-    
-    # Map cities to professional emojis
-    city_icons = {
-        "Dubai": "🏙️", "Riyadh": "🕌", "Miami": "🌴", "London": "🎡", "Tokyo": "🗼",
-        "Singapore": "🦁", "New": "🗽", "Berlin": "🐻", "Sydney": "🌉", "Paris": "🥐"
-    }
-    
-    # Create a grid of buttons (4 columns)
-    cols = st.columns(4)
-    for index, row in df.iterrows():
-        city_name = row['market_key']
-        icon = city_icons.get(city_name, "🏢")
-        
-        # Put button in the correct column
-        with cols[index % 4]:
-            if st.button(f"{icon}  {city_name}", key=f"btn_{index}"):
-                st.session_state['selected_market'] = index
+    # Professional Sidebar Selection (No Emojis)
+    st.sidebar.markdown("### Navigation")
+    st.sidebar.markdown("Select a market to view its detailed investment report and download the PDF.")
+    selected_market_name = st.sidebar.selectbox("Markets", df['market_key'].unique())
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Detailed Report Section (Shows when a city is clicked)
-    if 'selected_market' in st.session_state:
-        selected_index = st.session_state['selected_market']
-        row = df.iloc[selected_index]
+    # Detailed Report Section
+    if selected_market_name:
+        # Get the data for the selected market
+        row = df[df['market_key'] == selected_market_name].iloc[0]
         
-        st.markdown(f"### {city_icons.get(row['market_key'], '🏢')} {row['market_key']} - {row.get('property_address', 'Unknown')}")
+        st.markdown(f"### {selected_market_name} - {row.get('property_address', 'Unknown')}")
         
         c1, c2 = st.columns([1, 2])
         with c1:
@@ -204,7 +193,7 @@ else:
             st.markdown("---")
             pdf_bytes = generate_pdf(row)
             st.download_button(
-                label="📄 Download PDF Report",
+                label="Download PDF Report",
                 data=pdf_bytes,
                 file_name=f"Zeluv_io_{row['market_key']}_Report.pdf",
                 mime="application/pdf"
@@ -215,5 +204,3 @@ else:
             st.info(row.get('executive_summary', 'N/A'))
             st.markdown("#### Recommendation")
             st.warning(row.get('actionable_recommendation', 'N/A'))
-    else:
-        st.info("👆 Click a city above to load its detailed investment report.")
