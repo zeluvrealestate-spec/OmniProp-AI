@@ -7,9 +7,6 @@ import datetime
 import time
 from tavily import TavilyClient
 
-# ==========================================
-# CONFIGURATION
-# ==========================================
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
 TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "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")
 SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL")
