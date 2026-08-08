@@ -4,7 +4,6 @@ import json
 import pandas as pd
 import plotly.express as px
 import io
-import random
 from fpdf import FPDF
 
 # ==========================================
@@ -30,6 +29,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
+# HELPER FUNCTIONS
+# ==========================================
+def clean_text(text):
+    """Cleans text of special Unicode characters that break PDF generation."""
+    if not text: return "N/A"
+    # Encode to ASCII and ignore characters that can't be encoded, then decode back
+    return text.encode('ascii', 'ignore').decode('ascii')
+
+# ==========================================
 # DATA LOADING
 # ==========================================
 def load_data():
@@ -47,7 +55,7 @@ def load_data():
     return pd.DataFrame(all_reports)
 
 # ==========================================
-# PDF GENERATOR
+# PDF GENERATOR (With Cleaned Text)
 # ==========================================
 def generate_pdf(report):
     pdf = FPDF()
@@ -56,6 +64,7 @@ def generate_pdf(report):
     pdf.set_font("Helvetica", 'B', 20)
     pdf.set_text_color(30, 30, 30)
     pdf.cell(0, 10, "Zeluv io", ln=True)
+    
     pdf.set_font("Helvetica", '', 12)
     pdf.set_text_color(120, 120, 120)
     pdf.cell(0, 10, "Investment Intelligence Report", ln=True)
@@ -79,17 +88,19 @@ def generate_pdf(report):
     pdf.cell(0, 8, "SWOT ANALYSIS", ln=True)
     pdf.set_font("Helvetica", '', 11)
     pdf.set_text_color(0, 0, 0)
-    pdf.multi_cell(0, 8, f"Strengths: {report.get('strengths', 'N/A')}")
-    pdf.multi_cell(0, 8, f"Weaknesses: {report.get('weaknesses', 'N/A')}")
-    pdf.multi_cell(0, 8, f"Opportunities: {report.get('opportunities', 'N/A')}")
-    pdf.multi_cell(0, 8, f"Threats: {report.get('threats', 'N/A')}")
+    
+    # Clean all text before passing to multi_cell to prevent Unicode crashes
+    pdf.multi_cell(0, 8, f"Strengths: {clean_text(report.get('strengths', 'N/A'))}")
+    pdf.multi_cell(0, 8, f"Weaknesses: {clean_text(report.get('weaknesses', 'N/A'))}")
+    pdf.multi_cell(0, 8, f"Opportunities: {clean_text(report.get('opportunities', 'N/A'))}")
+    pdf.multi_cell(0, 8, f"Threats: {clean_text(report.get('threats', 'N/A'))}")
     pdf.ln(5)
     
     pdf.set_font("Helvetica", 'B', 12)
     pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 8, "EXECUTIVE SUMMARY", ln=True)
     pdf.set_font("Helvetica", '', 11)
-    pdf.multi_cell(0, 8, report.get('executive_summary', 'N/A'))
+    pdf.multi_cell(0, 8, clean_text(report.get('executive_summary', 'N/A')))
     
     return bytes(pdf.output())
 
