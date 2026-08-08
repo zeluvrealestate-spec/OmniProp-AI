@@ -3,12 +3,7 @@ import redis
 import json
 import pandas as pd
 import plotly.express as px
-import io
-from fpdf import FPDF
 
-# ==========================================
-# CONFIGURATION & PAGE SETUP
-# ==========================================
 st.set_page_config(page_title="Zeluv io", page_icon="🏢", layout="wide")
 
 try:
@@ -32,22 +27,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# HELPER FUNCTIONS
-# ==========================================
-def clean_text(text):
-    if not text: return "N/A"
-    text = str(text)
-    return text.encode('ascii', 'ignore').decode('ascii')
-
-# ==========================================
-# DATA LOADING (Bulletproofed)
-# ==========================================
 def load_data():
     if not REDIS_URL:
         st.error("REDIS_URL secret is missing in Streamlit Cloud settings!")
         return pd.DataFrame()
-        
     try:
         r = redis.from_url(REDIS_URL, decode_responses=True)
         r.ping()
@@ -66,58 +49,6 @@ def load_data():
         st.error(f"Failed to connect to Redis: {e}")
         return pd.DataFrame()
 
-# ==========================================
-# PDF GENERATOR
-# ==========================================
-def generate_pdf(report):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.ln(10)
-    pdf.set_font("Helvetica", 'B', 20)
-    pdf.set_text_color(30, 30, 30)
-    pdf.cell(0, 10, "Zeluv io", ln=True)
-    
-    pdf.set_font("Helvetica", '', 12)
-    pdf.set_text_color(120, 120, 120)
-    pdf.cell(0, 10, "Investment Intelligence Report", ln=True)
-    pdf.ln(10)
-    pdf.set_draw_color(200, 200, 200)
-    pdf.line(10, 35, 200, 35)
-    pdf.ln(5)
-    
-    pdf.set_font("Helvetica", 'B', 12)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 8, "FINANCIAL METRICS", ln=True)
-    pdf.set_font("Helvetica", '', 11)
-    pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 8, f"Price: ${report.get('purchase_price', 0):,.0f}", ln=True)
-    pdf.cell(0, 8, f"Cap Rate: {report.get('cap_rate', 0)}%", ln=True)
-    pdf.cell(0, 8, f"Cash-on-Cash ROI: {report.get('annual_roi_pct', 0)}%", ln=True)
-    pdf.ln(5)
-    
-    pdf.set_font("Helvetica", 'B', 12)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 8, "SWOT ANALYSIS", ln=True)
-    pdf.set_font("Helvetica", '', 11)
-    pdf.set_text_color(0, 0, 0)
-    
-    pdf.multi_cell(0, 8, f"Strengths: {clean_text(report.get('strengths', 'N/A'))}", wrapmode="CHAR")
-    pdf.multi_cell(0, 8, f"Weaknesses: {clean_text(report.get('weaknesses', 'N/A'))}", wrapmode="CHAR")
-    pdf.multi_cell(0, 8, f"Opportunities: {clean_text(report.get('opportunities', 'N/A'))}", wrapmode="CHAR")
-    pdf.multi_cell(0, 8, f"Threats: {clean_text(report.get('threats', 'N/A'))}", wrapmode="CHAR")
-    pdf.ln(5)
-    
-    pdf.set_font("Helvetica", 'B', 12)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 8, "EXECUTIVE SUMMARY", ln=True)
-    pdf.set_font("Helvetica", '', 11)
-    pdf.multi_cell(0, 8, clean_text(report.get('executive_summary', 'N/A')), wrapmode="CHAR")
-    
-    return bytes(pdf.output())
-
-# ==========================================
-# DASHBOARD UI
-# ==========================================
 st.markdown("<h1 style='font-size: 2.2rem; font-weight: 800; margin-bottom: 0; color: #FFFFFF;'>Zeluv io</h1>", unsafe_allow_html=True)
 st.markdown("<p style='font-size: 1.05rem; color: #AAAAAA; margin-top: 0;'>Global Real Estate Investment Intelligence</p>", unsafe_allow_html=True)
 st.markdown("<hr style='margin-top: 10px; margin-bottom: 20px; border-color: #333333;'>", unsafe_allow_html=True)
@@ -127,7 +58,6 @@ df = load_data()
 if df.empty:
     st.warning("No reports found in the database yet. Make sure the GitHub Action has successfully finished running!")
 else:
-    # Ensure numeric columns exist and are numeric
     for col in ['purchase_price', 'annual_roi_pct', 'cap_rate', 'monthly_cashflow']:
         if col not in df.columns:
             df[col] = 0
@@ -139,7 +69,6 @@ else:
     col2.metric("Highest Cap Rate", f"{df['cap_rate'].max()}%")
     col3.metric("Best ROI", f"{df['annual_roi_pct'].max()}%")
     
-    # Safe mode for legal risk
     if 'legal_risk_level' in df.columns and not df['legal_risk_level'].empty:
         col4.metric("Highest Legal Risk", df['legal_risk_level'].mode()[0])
     else:
@@ -147,10 +76,7 @@ else:
         
     st.markdown("---")
 
-    # CHART 1: COMPARATIVE GROUPED BAR CHART
     st.markdown("### Market Comparison: Cap Rate vs. Cash-on-Cash ROI")
-    
-    # Check if required columns exist before melting
     if 'market_key' in df.columns and 'cap_rate' in df.columns and 'annual_roi_pct' in df.columns:
         df_chart = df[['market_key', 'cap_rate', 'annual_roi_pct']].melt(id_vars=['market_key'], var_name='Metric', value_name='Value')
         df_chart['Metric'] = df_chart['Metric'].replace({'cap_rate': 'Cap Rate', 'annual_roi_pct': 'Cash-on-Cash ROI'})
@@ -165,16 +91,14 @@ else:
         
     st.markdown("---")
 
-    # SIDEBAR SELECTION
     st.sidebar.markdown("### Navigation")
-    st.sidebar.markdown("Select a market to view SWOT, Forecast, and PDF.")
+    st.sidebar.markdown("Select a market to view SWOT and Forecast.")
     
     if 'market_key' in df.columns:
         selected_market_name = st.sidebar.selectbox("Markets", df['market_key'].unique())
 
         if selected_market_name:
             row = df[df['market_key'] == selected_market_name].iloc[0]
-            
             st.markdown(f"### {selected_market_name} - {row.get('property_address', 'Unknown')}")
             
             c1, c2 = st.columns([1, 2])
@@ -189,14 +113,6 @@ else:
                 st.markdown(f"• 1-Year: `{row.get('forecast_1y', 'N/A')}`")
                 st.markdown(f"• 3-Year: `{row.get('forecast_3y', 'N/A')}`")
                 st.markdown(f"• 5-Year: `{row.get('forecast_5y', 'N/A')}`")
-                st.markdown("---")
-                
-                try:
-                    pdf_bytes = generate_pdf(row)
-                    st.download_button(label="Download PDF Report", data=pdf_bytes, file_name=f"Zeluv_io_{row['market_key']}_Report.pdf", mime="application/pdf")
-                except Exception as e:
-                    st.error("PDF generation unavailable for this report.")
-                
             with c2:
                 st.markdown("#### Executive Summary")
                 st.info(row.get('executive_summary', 'N/A'))
@@ -205,7 +121,6 @@ else:
                 
             st.markdown("---")
             
-            # SWOT ANALYSIS GRID
             st.markdown(f"### {selected_market_name}: SWOT Analysis")
             col_s, col_w, col_o, col_t = st.columns(4)
             with col_s:
@@ -224,5 +139,3 @@ else:
                 st.markdown("<div style='background-color:#1A1A1A; padding:15px; border-radius:4px; border-top: 3px solid #FFC107; height: 100%;'><h4 style='color:#FFC107; margin-bottom:10px;'>Threats</h4>", unsafe_allow_html=True)
                 st.write(row.get('threats', 'N/A'))
                 st.markdown("</div>", unsafe_allow_html=True)
-    else:
-        st.warning("No market data found.")
