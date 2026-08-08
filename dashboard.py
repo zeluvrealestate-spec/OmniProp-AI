@@ -32,9 +32,9 @@ st.markdown("""
 # HELPER FUNCTIONS
 # ==========================================
 def clean_text(text):
-    """Cleans text of special Unicode characters that break PDF generation."""
+    """Cleans text of special Unicode characters and forces it to be a string."""
     if not text: return "N/A"
-    # Encode to ASCII and ignore characters that can't be encoded, then decode back
+    text = str(text) # Force to string in case it's a dict/list
     return text.encode('ascii', 'ignore').decode('ascii')
 
 # ==========================================
@@ -55,7 +55,7 @@ def load_data():
     return pd.DataFrame(all_reports)
 
 # ==========================================
-# PDF GENERATOR (With Cleaned Text)
+# PDF GENERATOR (Bulletproofed)
 # ==========================================
 def generate_pdf(report):
     pdf = FPDF()
@@ -89,7 +89,7 @@ def generate_pdf(report):
     pdf.set_font("Helvetica", '', 11)
     pdf.set_text_color(0, 0, 0)
     
-    # Clean all text before passing to multi_cell to prevent Unicode crashes
+    # Clean all text before passing to multi_cell
     pdf.multi_cell(0, 8, f"Strengths: {clean_text(report.get('strengths', 'N/A'))}")
     pdf.multi_cell(0, 8, f"Weaknesses: {clean_text(report.get('weaknesses', 'N/A'))}")
     pdf.multi_cell(0, 8, f"Opportunities: {clean_text(report.get('opportunities', 'N/A'))}")
@@ -165,8 +165,13 @@ else:
             st.markdown(f"• 3-Year: `{row.get('forecast_3y', 'N/A')}`")
             st.markdown(f"• 5-Year: `{row.get('forecast_5y', 'N/A')}`")
             st.markdown("---")
-            pdf_bytes = generate_pdf(row)
-            st.download_button(label="Download PDF Report", data=pdf_bytes, file_name=f"Zeluv_io_{row['market_key']}_Report.pdf", mime="application/pdf")
+            
+            # Wrap PDF generation in try-except to prevent app crash
+            try:
+                pdf_bytes = generate_pdf(row)
+                st.download_button(label="Download PDF Report", data=pdf_bytes, file_name=f"Zeluv_io_{row['market_key']}_Report.pdf", mime="application/pdf")
+            except Exception as e:
+                st.error("PDF generation unavailable for this report.")
             
         with c2:
             st.markdown("#### Executive Summary")
