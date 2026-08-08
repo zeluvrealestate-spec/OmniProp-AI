@@ -94,7 +94,6 @@ def run_groq_agent(system_prompt, user_prompt):
                 print(f"❌ [Groq Error]: {e}")
                 return {}
 
-# PROMPTS
 PROMPT_A = """[ROLE] You are Agent A. Extract real estate trends.\n[OUTPUT] Output valid JSON: { "status": "SUCCESS", "investment_signal": "string", "emerging_location": "string", "agent_name": "Agent_A" }"""
 PROMPT_G = """[ROLE] You are Agent G. Find ONE specific property price.\n[RULES] 1. "purchase_price" MUST be integer. 2. "estimated_monthly_rent" MUST be integer (estimate 0.5% of price if unknown). 3. If no price, output 0.\n[OUTPUT] Output valid JSON: { "property_address": "string", "purchase_price": "integer", "estimated_monthly_rent": "integer", "agent_name": "Agent_G" }"""
 PROMPT_C = """[ROLE] You are Agent C, Legal Expert. Check foreign ownership laws.\n[OUTPUT] Output valid JSON: { "legal_compliance": "string", "legal_risk_level": "Low | Medium | High", "agent_name": "Agent_C" }"""
