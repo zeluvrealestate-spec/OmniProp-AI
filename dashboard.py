@@ -3,7 +3,6 @@ import redis
 import json
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import io
 import random
 from fpdf import FPDF
@@ -12,10 +11,8 @@ from fpdf import FPDF
 # CONFIGURATION & PAGE SETUP
 # ==========================================
 st.set_page_config(page_title="Zeluv io", page_icon="🏢", layout="wide")
-
 REDIS_URL = st.secrets["REDIS_URL"]
 
-# Custom CSS for a Modern, Sleek Black Enterprise Look
 st.markdown("""
 <style>
     .stApp { background-color: #000000; padding-top: 2rem; }
@@ -25,10 +22,7 @@ st.markdown("""
     .stMetric value { color: #FFFFFF !important; }
     footer { visibility: hidden; }
     [data-testid="stSidebar"] { background-color: #000000; border-right: 1px solid #333333; }
-    .stButton > button {
-        border: 1px solid #333333; background-color: #1A1A1A; color: #FFFFFF;
-        border-radius: 4px; padding: 10px 15px; font-weight: 500; width: 100%;
-    }
+    .stButton > button { border: 1px solid #333333; background-color: #1A1A1A; color: #FFFFFF; border-radius: 4px; padding: 10px 15px; font-weight: 500; width: 100%; }
     .stButton > button:hover { border-color: #FFFFFF; background-color: #333333; }
     .stSelectbox > div > div { background-color: #1A1A1A; color: #FFFFFF; border: 1px solid #333333; }
     hr { border-color: #333333 !important; }
@@ -69,28 +63,34 @@ def generate_pdf(report):
     pdf.set_draw_color(200, 200, 200)
     pdf.line(10, 35, 200, 35)
     pdf.ln(5)
-    pdf.set_font("Helvetica", 'B', 12)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 8, "PROPERTY DETAILS", ln=True)
-    pdf.set_font("Helvetica", '', 11)
-    pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 8, f"Market: {report.get('market_key', 'N/A')}", ln=True)
-    pdf.cell(0, 8, f"Address: {report.get('property_address', 'N/A')}", ln=True)
-    pdf.ln(5)
+    
     pdf.set_font("Helvetica", 'B', 12)
     pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 8, "FINANCIAL METRICS", ln=True)
     pdf.set_font("Helvetica", '', 11)
-    pdf.cell(0, 8, f"Purchase Price: ${report.get('purchase_price', 0):,.0f}", ln=True)
-    pdf.cell(0, 8, f"Monthly Cash Flow: ${report.get('monthly_cashflow', 0):,.2f}", ln=True)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 8, f"Price: ${report.get('purchase_price', 0):,.0f}", ln=True)
     pdf.cell(0, 8, f"Cap Rate: {report.get('cap_rate', 0)}%", ln=True)
-    pdf.cell(0, 8, f"1% Rule: {report.get('one_percent_rule', 'N/A')}", ln=True)
+    pdf.cell(0, 8, f"Cash-on-Cash ROI: {report.get('annual_roi_pct', 0)}%", ln=True)
     pdf.ln(5)
+    
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 8, "SWOT ANALYSIS", ln=True)
+    pdf.set_font("Helvetica", '', 11)
+    pdf.set_text_color(0, 0, 0)
+    pdf.multi_cell(0, 8, f"Strengths: {report.get('strengths', 'N/A')}")
+    pdf.multi_cell(0, 8, f"Weaknesses: {report.get('weaknesses', 'N/A')}")
+    pdf.multi_cell(0, 8, f"Opportunities: {report.get('opportunities', 'N/A')}")
+    pdf.multi_cell(0, 8, f"Threats: {report.get('threats', 'N/A')}")
+    pdf.ln(5)
+    
     pdf.set_font("Helvetica", 'B', 12)
     pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 8, "EXECUTIVE SUMMARY", ln=True)
     pdf.set_font("Helvetica", '', 11)
     pdf.multi_cell(0, 8, report.get('executive_summary', 'N/A'))
+    
     return bytes(pdf.output())
 
 # ==========================================
@@ -117,29 +117,23 @@ else:
     col2.metric("Highest Cap Rate", f"{df['cap_rate'].max()}%")
     col3.metric("Best ROI", f"{df['annual_roi_pct'].max()}%")
     col4.metric("Highest Legal Risk", df['legal_risk_level'].mode()[0])
-    
     st.markdown("---")
 
     # CHART 1: COMPARATIVE GROUPED BAR CHART
     st.markdown("### Market Comparison: Cap Rate vs. Cash-on-Cash ROI")
-    
-    # Prepare data for grouped bar chart
     df_chart = df[['market_key', 'cap_rate', 'annual_roi_pct']].melt(id_vars=['market_key'], var_name='Metric', value_name='Value')
     df_chart['Metric'] = df_chart['Metric'].replace({'cap_rate': 'Cap Rate', 'annual_roi_pct': 'Cash-on-Cash ROI'})
-    
     fig_comp = px.bar(df_chart, x='market_key', y='Value', color='Metric', barmode='group', text='Value')
     fig_comp.update_traces(texttemplate='%{text}%', textposition='outside', textfont_color='#FFFFFF')
-    # Custom colors: Cap Rate (Blue), ROI (Gold/Green)
     fig_comp.update_layout(showlegend=True, xaxis_title="", yaxis_title="Percentage (%)", font=dict(size=12, color='#AAAAAA'), plot_bgcolor='#000000', paper_bgcolor='#000000', margin=dict(t=10, b=10), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     fig_comp.update_yaxes(showgrid=False, showline=True, linewidth=1, linecolor='#333333', color='#AAAAAA')
     fig_comp.update_xaxes(showline=True, linewidth=1, linecolor='#333333', color='#AAAAAA')
     st.plotly_chart(fig_comp, use_container_width=True)
-
     st.markdown("---")
 
     # SIDEBAR SELECTION
     st.sidebar.markdown("### Navigation")
-    st.sidebar.markdown("Select a market to view its detailed investment report, 10-year growth, and download the PDF.")
+    st.sidebar.markdown("Select a market to view SWOT, Forecast, and PDF.")
     selected_market_name = st.sidebar.selectbox("Markets", df['market_key'].unique())
 
     if selected_market_name:
@@ -149,13 +143,16 @@ else:
         
         c1, c2 = st.columns([1, 2])
         with c1:
-            st.markdown("#### Financials")
+            st.markdown("#### Financials & Forecast")
             st.markdown(f"**Purchase Price:** ${row['purchase_price']:,.0f}")
-            st.markdown(f"**Monthly Rent:** ${row.get('monthly_rent', 0):,.0f}")
-            st.markdown(f"**Monthly Cashflow:** ${row['monthly_cashflow']:,.2f}")
             st.markdown(f"**Cap Rate:** {row['cap_rate']}%")
+            st.markdown(f"**Cash-on-Cash ROI:** {row['annual_roi_pct']}%")
             st.markdown(f"**1% Rule:** {row.get('one_percent_rule', 'N/A')}")
-            st.markdown(f"**Legal Risk:** {row.get('legal_risk_level', 'N/A')}")
+            st.markdown("---")
+            st.markdown("**📈 Price Forecast:**")
+            st.markdown(f"• 1-Year: `{row.get('forecast_1y', 'N/A')}`")
+            st.markdown(f"• 3-Year: `{row.get('forecast_3y', 'N/A')}`")
+            st.markdown(f"• 5-Year: `{row.get('forecast_5y', 'N/A')}`")
             st.markdown("---")
             pdf_bytes = generate_pdf(row)
             st.download_button(label="Download PDF Report", data=pdf_bytes, file_name=f"Zeluv_io_{row['market_key']}_Report.pdf", mime="application/pdf")
@@ -168,38 +165,22 @@ else:
             
         st.markdown("---")
         
-        # CHART 2: 10-YEAR HISTORICAL GROWTH CHART
-        st.markdown(f"### {selected_market_name}: 10-Year Historical Price Growth")
-        
-        # Generate deterministic mock historical data based on the city name
-        random.seed(selected_market_name)
-        base_price = row['purchase_price'] * 0.6 # Assume it was worth 60% 10 years ago
-        years = list(range(2016, 2026))
-        prices = []
-        current_price = base_price
-        for year in years:
-            growth_rate = random.uniform(0.03, 0.12) # 3% to 12% annual growth
-            current_price = current_price * (1 + growth_rate)
-            prices.append(current_price)
-            
-        # Force the last year to be the exact current purchase price
-        prices[-1] = row['purchase_price']
-        
-        hist_df = pd.DataFrame({'Year': years, 'Average Price': prices})
-        
-        fig_growth = px.bar(hist_df, x='Year', y='Average Price', text=hist_df['Average Price'])
-        
-        # Calculate YoY growth percentages for the text
-        yoy_growth = []
-        for i in range(len(prices)):
-            if i == 0:
-                yoy_growth.append("")
-            else:
-                pct = ((prices[i] - prices[i-1]) / prices[i-1]) * 100
-                yoy_growth.append(f"+{pct:.1f}%")
-                
-        fig_growth.update_traces(marker_color='#4A90E2', marker_line_width=0, text=yoy_growth, textposition='outside', textfont_color='#FFFFFF')
-        fig_growth.update_layout(showlegend=False, xaxis_title="Year", yaxis_title="Average Property Price ($)", font=dict(size=12, color='#AAAAAA'), plot_bgcolor='#000000', paper_bgcolor='#000000', margin=dict(t=10, b=10))
-        fig_growth.update_yaxes(showgrid=False, showline=True, linewidth=1, linecolor='#333333', color='#AAAAAA', tickprefix='$')
-        fig_growth.update_xaxes(showline=True, linewidth=1, linecolor='#333333', color='#AAAAAA', dtick=1)
-        st.plotly_chart(fig_growth, use_container_width=True)
+        # SWOT ANALYSIS GRID
+        st.markdown(f"### {selected_market_name}: SWOT Analysis")
+        col_s, col_w, col_o, col_t = st.columns(4)
+        with col_s:
+            st.markdown("<div style='background-color:#1A1A1A; padding:15px; border-radius:4px; border-top: 3px solid #4A90E2; height: 100%;'><h4 style='color:#4A90E2; margin-bottom:10px;'>Strengths</h4>", unsafe_allow_html=True)
+            st.write(row.get('strengths', 'N/A'))
+            st.markdown("</div>", unsafe_allow_html=True)
+        with col_w:
+            st.markdown("<div style='background-color:#1A1A1A; padding:15px; border-radius:4px; border-top: 3px solid #FF5252; height: 100%;'><h4 style='color:#FF5252; margin-bottom:10px;'>Weaknesses</h4>", unsafe_allow_html=True)
+            st.write(row.get('weaknesses', 'N/A'))
+            st.markdown("</div>", unsafe_allow_html=True)
+        with col_o:
+            st.markdown("<div style='background-color:#1A1A1A; padding:15px; border-radius:4px; border-top: 3px solid #4CAF50; height: 100%;'><h4 style='color:#4CAF50; margin-bottom:10px;'>Opportunities</h4>", unsafe_allow_html=True)
+            st.write(row.get('opportunities', 'N/A'))
+            st.markdown("</div>", unsafe_allow_html=True)
+        with col_t:
+            st.markdown("<div style='background-color:#1A1A1A; padding:15px; border-radius:4px; border-top: 3px solid #FFC107; height: 100%;'><h4 style='color:#FFC107; margin-bottom:10px;'>Threats</h4>", unsafe_allow_html=True)
+            st.write(row.get('threats', 'N/A'))
+            st.markdown("</div>", unsafe_allow_html=True)
